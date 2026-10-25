@@ -63,7 +63,7 @@ Fabric mod（modid `aiplayer`，Minecraft 26.3，Java 25）。`/aiplayer add <na
   → 各脑区（皮层重激活 / 海马记忆 / 前额叶目标 / 情绪内驱调制）
   → 目标选择（习得策略采样 + 反事实想象 + 内在动机）
   → 运动皮层（InteractionCortex / MotorCortex）→ 实际动作
-语言：PhonationLayer 新造音节 → CommunicativeVoice 发声；新造词绑定当前感知编号集（指称锚定）。英文标点（`.`, `,`, `!`, `?`）像字母一样自然涌现：`PhonationLayer.invent` 造词时按概率 `PUNCT_CHANCE` 从 `PUNCT` 抽一个标点附在词尾（这是发声层抽取，不是"意图→标点"的硬编码断句符）；`SemanticLearner.tokenize` 把句读标点保留为 token 的组成部分（不再剥成空格），使标点绑定状态、可学习固化、可被重复说出。
+语言：PhonationLayer 新造音节 → CommunicativeVoice 发声；新造词绑定当前感知编号集（指称锚定）。英文标点（`.`, `,`, `!`, `?`）像字母一样自然涌现：`PhonationLayer.invent` 造词时按概率 `PUNCT_CHANCE` 从 `PUNCT` 抽一个标点附在词尾（这是发声层抽取，不是"意图→标点"的硬编码断句符）；`SemanticLearner.tokenize` 把句读标点保留为 token 的组成部分（不再剥成空格），使标点绑定状态、可学习固化、可被重复说出。造词长度与句子词数同样**无固定上限**——已删 `PhonationLayer.MAX_LEN` 与 `NGramComposer.SAFETY_MAX_CHAIN`，新音节长度从已学词汇长度分布采样（空词库自然偏向短），句子靠"当前状态词用尽"自然终止。
 ```
 
 - 感知层已砍掉 near4/F_SPATIAL/F_ENTITY 等"主视觉列表"，行为层**依赖视网膜命中的实体对象**做行动锁定——改动感知会直接影响行为，务必两头一起改。
@@ -96,7 +96,7 @@ Fabric mod（modid `aiplayer`，Minecraft 26.3，Java 25）。`/aiplayer add <na
 
 ## 6. 已知坑 / 待解决（务必先读）
 
-1. **两词上限**（#21）：bot 长期只会说 1–2 个词的"句子"，纯时间推不破。需要**序列组合/句法机制**（如 NGramComposer 链式选词）+ **指称压力造词**（有表达意图但词库无对应词 → PhonationLayer 新造音节并绑定当前感知编号）。这是当前最大的行为缺口。
+1. **句子偏短**（#21）：bot 长期只产 1–2 词短句。机制缺口已补——`NGramComposer.composeChain` 用**双腿**（统计 bigram + 语义关联）链式选词，句子**无词数上限**、靠"状态词用尽"自然终止；造词长度也**无上限**、从词长分布采样。但"bot 是否会随时间把句子真正说长"仍需长跑观察。这是当前最大的行为观察点。
 2. **性能 / 崩溃**（#18 历史）：`AssociativeMemory.enforceNodeCap` 曾因全量排序 O(n²~n³) 触发 Watchdog 强杀（30 bot × 40h）。已修复（缓存 commitment + 分批 prune），但 30 bot 长跑仍要留意：视野扫描（`WorldEventStream`）需节流，别每 tick 对 ~11000 方块做 `toString()`。
 3. **核心大文件**：`NeuralCenter.java`(134KB)、`AIPlayer.java`(119KB)——改动时注意可维护性；经 GitHub 插件无法推送（需本地 git）。
 4. **神经网络是全自研矩阵，不是 LLM**：别往"预训练/注意力/transformer"方向改，守住"编号驱动 + 关联记忆 + 可学习涌现"。
@@ -106,7 +106,29 @@ Fabric mod（modid `aiplayer`，Minecraft 26.3，Java 25）。`/aiplayer add <na
 
 ---
 
-## 7. 修改规范
+## 7. 神经适应 / 习惯化 缓解 CPU（给下一棒的思路，未实现）
+
+> 大脑演化出的"只处理变化"机制天然适合给视网膜减负（当前全量重扫 ~11000 方块是 CPU 热点，见 §6.2）。以下思路**只记录不实现**，下一棒需要时再落地。
+
+- **特罗克斯勒褪色（Troxler fading）**：稳定不变的画面逐渐"褪色"，只感知变化。工程映射 = 懒重采样：上一帧采样过的格子下一帧沿用旧标签，只有变化的格子才重新射线/查询。
+  - 只对**外周静态格子**启用（方块背景几乎不变，省 CPU 主要在这里）；**中央 fovea 保持高频**（动态目标不可褪色，否则丢目标）。
+  - **自运动强制重扫**：bot 移动/转头时整个画面都在"变化"，褪色自动失效，需强制全量/增量重扫，否则缓存失效反而更慢。
+  - **风险**：静止背景中缓慢出现的目标会被忽略（潜行的玩家/隐形怪）——可加"曾显著位置变化立即重扫"的注意门控。
+- **其他可借鉴的神经节省机制**（原理 → 工程映射）：
+  - **中央凹化 + 扫视（foveation & saccade）**：只在注视点全采样、外周低采样——**已实现**（中心细/外周粗）。
+  - **神经适应（neural adaptation）**：持续刺激→发放率下降 → 对应"重复刺激降权/缓存"。
+  - **扫视抑制（saccadic suppression）**：扫视期间抑制视觉 → 对应"移动时降采样/不重扫"（与自运动门控同一处）。
+  - **侧抑制/边缘编码（lateral inhibition）**：神经节细胞只编码边界与变化（on-center/off-surround），压缩冗余 → 只对"边界/变化格"重采样。
+  - **预测编码（predictive coding）**：只上传"预测误差"，已预测部分不传 → 最强省带宽：能预测的格子不重扫。
+  - **冗余压缩（efficient coding, Barlow）**：消除统计冗余 → 对重复出现的同质方块只存一次标签。
+  - **习惯化（habituation, Kandel）**：重复无意义刺激反应减弱 → 对常驻噪音（流水、风声）不再喂感知。
+  - **感觉门控（sensory gating, P50）**：屏蔽恒定/重复输入。
+  - **注意窗/显著性选择（attention & saliency）**：只在显著位置全处理，其余低采样。
+  - **负面对照：变化盲（change blindness）**：警惕"只测变化"导致漏掉静止中缓慢发生的关键变化（与特罗克斯勒风险同源）。
+
+---
+
+## 8. 修改规范
 
 - 遵循红线（§1）。加感知 → 接对应脑区；改行为 → 走可学习/动机层，不写死。
 - 改持久化格式要兼容旧档（缺键按空读）。
@@ -115,7 +137,7 @@ Fabric mod（modid `aiplayer`，Minecraft 26.3，Java 25）。`/aiplayer add <na
 
 ---
 
-## 8. 遗留 / 风险
+## 9. 遗留 / 风险
 
 - **GitHub 发布**：本机无代理时本地 git push 被网络阻断；远端已有部分过程文件（构建配置/文档/viewer 部分），完整发布需本地网络后 `git push --force-with-lease origin main` 覆盖为本地最终 commit（本地历史含全部 131 文件）。认证账号 `RS6048` 即仓库 owner。
 - viewer 坐标映射：有 `aiplayer_map_meta.csv` 时精确；无外参时回退 bot 包围盒近似（可能偏移）。map 瞄准偏移问题已修（mod 端 `WorldOutputHub.exportMap` 写外参，viewer `MapPanel` 用真实外参映射）。

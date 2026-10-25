@@ -4,7 +4,7 @@ A **Fabric mod** for Minecraft 26.3 that spawns autonomous agents who survive, l
 
 ## Highlights
 
-- **No LLM, no chatbuddy.** Removed. Agents never call a language model — language emerges from world events and their own phonation. Spoken lines may carry English punctuation (`.`, `,`, `!`, `?`) self-invented like the letters: the mouth can draw a mark, the semantic layer binds it to a state, and the brain may repeat it — never a hard-coded break.
+- **No LLM, no chatbuddy.** Removed. Agents never call a language model — language emerges from world events and their own phonation. Spoken lines may carry English punctuation (`.`, `,`, `!`, `?`) self-invented like the letters: the mouth can draw a mark, the semantic layer binds it to a state, and the brain may repeat it — never a hard-coded break. Neither the letter-count of a coined syllable nor the word-count of a sentence is capped — both limits were removed in favor of natural emergence: a syllable is as long as the words already learned, and a sentence runs until the moment has no more words to say.
 - **Embodied perception.** A foveated **retina matrix** (fine fovea + coarser periphery) returns entity/block labels, names, brightness and depth; separate input channels for hearing (sound registry names), the crosshair, world events, containers, signs and books.
 - **Neural associative memory.** Perception is encoded as **addressed ids** and linked by co-occurrence; no rules are injected into the encoding. Multi-tier memory (working / episodic / semantic / long-term) with a forgetting curve and one shared store.
 - **Partitioned brain.** Regions mirror a nervous system: sensory cortices, parietal spatial working memory, hippocampus (cognitive map), prefrontal cortex (counterfactual simulation / prediction), limbic + autonomic (emotion, drives), motor cortex, and a language area that binds **self-invented words** to perception.
@@ -39,7 +39,7 @@ Launch a Fabric server or the IDE "run Server" (or the headless server in `headl
 
 ## Status & roadmap
 
-See `TODO.md` for the detailed backlog (e.g. breaking the two-word sentence cap / referential pressure, further brain-region refinement). See `DEVELOPER_HANDOVER.md` for an onboarding guide for future maintainers.
+See `TODO.md` for the detailed backlog (e.g. referential pressure, whether spoken sentences grow longer over time, further brain-region refinement). See `DEVELOPER_HANDOVER.md` for an onboarding guide for future maintainers.
 
 ## License
 
