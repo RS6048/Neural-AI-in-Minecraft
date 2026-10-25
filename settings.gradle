@@ -1,0 +1,22 @@
+pluginManagement {
+	repositories {
+		// Domestic mirrors (Aliyun) — faster in mainland China
+		maven {
+			name = 'Aliyun gradle-plugin'
+			url = 'https://maven.aliyun.com/repository/gradle-plugin'
+		}
+		maven {
+			name = 'Aliyun central'
+			url = 'https://maven.aliyun.com/repository/central'
+		}
+		maven {
+			name = 'Fabric'
+			url = 'https://maven.fabricmc.net/'
+		}
+		mavenCentral()
+		gradlePluginPortal()
+	}
+}
+
+// Should match your modid
+rootProject.name = 'aiplayer'
